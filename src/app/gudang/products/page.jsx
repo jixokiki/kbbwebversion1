@@ -1,6 +1,7 @@
 "use client";
 import useAuth from "@/app/hooks/useAuth";
 import NavbarAdmin from "@/components/NavbarAdmin";
+import NavbarGudang from "@/components/NavbarGudang";
 import { db, storage } from "@/firebase/firebase";
 import {
   collection,
@@ -136,7 +137,7 @@ const Product = () => {
 
   return (
     <div className="w-[87%] mx-auto mt-32">
-      <NavbarAdmin />
+      <NavbarGudang />
 
       <div className="flex justify-between items-center gap-3 mb-10">
         <h1 className="text-3xl font-semibold mb-3">Product List</h1>

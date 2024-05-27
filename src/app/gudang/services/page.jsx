@@ -1,6 +1,7 @@
 "use client";
 import useAuth from "@/app/hooks/useAuth";
 import NavbarAdmin from "@/components/NavbarAdmin";
+import NavbarGudang from "@/components/NavbarGudang";
 import { db, storage } from "@/firebase/firebase";
 import {
   collection,
@@ -19,7 +20,7 @@ import {
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
-const Product = () => {
+const Services = () => {
   const { user, userProfile } = useAuth();
   const router = useRouter();
   useEffect(() => {
@@ -31,14 +32,14 @@ const Product = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("fikom");
-  const [price, setPrice] = useState("");
+  const [contact, setContact] = useState("");
   const [downloadUrl, setDownloadUrl] = useState("");
   const [percentage, setPercentage] = useState(null);
   const [data, setData] = useState([]);
 
   useEffect(() => {
     const unsub = onSnapshot(
-      collection(db, "products"),
+      collection(db, "services"),
       (snapshot) => {
         let list = [];
         snapshot.docs.forEach((doc) => {
@@ -53,10 +54,10 @@ const Product = () => {
     const uploadFile = async () => {
       const storageRef = ref(
         storage,
-        "products/" +
+        "services/" +
           new Date().getTime() +
           file.name.replace(" ", "%20") +
-          "KBB"
+          "UEU"
       );
       const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -91,23 +92,23 @@ const Product = () => {
     };
   }, [file]);
 
-  const handleAddProduct = async (e) => {
+  const handleAddServices = async (e) => {
     e.preventDefault();
     // Collect user data and perform necessary operations
-    const productData = {
-      id: new Date().getTime() + title + "KBB",
+    const serviceData = {
+      id: new Date().getTime() + title + "UEU",
       image: downloadUrl,
       title: title,
       description: description,
       category: category,
-      price: price,
+      contact: contact,
     };
 
     try {
       await setDoc(
-        doc(db, "products", new Date().getTime() + productData.title + "KBB"),
+        doc(db, "services", new Date().getTime() + serviceData.title + "UEU"),
         {
-          ...productData,
+          ...serviceData,
           timeStamp: serverTimestamp(),
         }
       );
@@ -115,8 +116,8 @@ const Product = () => {
       setTitle("");
       setDescription("");
       setCategory("fikom");
-      setPrice("");
-      document.getElementById("addProductModal").close();
+      setContact("");
+      document.getElementById("addServiceModal").close();
     } catch (error) {
       console.log(error);
     }
@@ -124,7 +125,7 @@ const Product = () => {
 
   const handleDelete = async (id, image) => {
     try {
-      await deleteDoc(doc(db, "products", id));
+      await deleteDoc(doc(db, "services", id));
       setData(data.filter((item) => item.id !== id));
 
       const desertRef = ref(storage, image);
@@ -136,10 +137,10 @@ const Product = () => {
 
   return (
     <div className="w-[87%] mx-auto mt-32">
-      <NavbarAdmin />
+      <NavbarGudang />
 
       <div className="flex justify-between items-center gap-3 mb-10">
-        <h1 className="text-3xl font-semibold mb-3">Product List</h1>
+        <h1 className="text-3xl font-semibold mb-3">Services List</h1>
         <input
           type="text"
           placeholder="Search here"
@@ -151,30 +152,19 @@ const Product = () => {
             <option>Fikom</option>
             <option>Fasilkom</option>
             <option>DKV</option>
-            <option>Fasilkom</option>
-            <option>Baleho 1</option>
-            <option>Baleho 2</option>
-            <option>Baleho 3</option>
-            <option>Baleho 4</option>
-            <option>Baleho 5</option>
-            <option>Baleho 6</option>
-            <option>Baleho 7</option>
-            <option>Baleho 8</option>
-            <option>Baleho 9</option>
-            <option>Baleho 10</option>
           </select>
         </label>
         <button
           className="btn bg-teal-600 hover:bg-teal-500 text-white"
-          onClick={() => document.getElementById("addProductModal").showModal()}
+          onClick={() => document.getElementById("addServiceModal").showModal()}
         >
-          Add Product
+          Add Services
         </button>
         {/* Modal add user */}
-        <dialog id="addProductModal" className="modal">
+        <dialog id="addServiceModal" className="modal">
           <div className="modal-box">
-            <h3 className="font-semibold text-xl">Add Product</h3>
-            <form onSubmit={handleAddProduct}>
+            <h3 className="font-semibold text-xl">Add Services</h3>
+            <form onSubmit={handleAddServices}>
               <div className="py-4">
                 <div className="flex flex-col gap-3 mb-3">
                   <label htmlFor="image">Image</label>
@@ -237,27 +227,17 @@ const Product = () => {
                     <option>fikom</option>
                     <option>fasilkom</option>
                     <option>dkv</option>
-                    <option>baleho 1</option>
-                    <option>baleho 2</option>
-                    <option>baleho 3</option>
-                    <option>baleho 4</option>
-                    <option>baleho 5</option>
-                    <option>baleho 6</option>
-                    <option>baleho 7</option>
-                    <option>baleho 8</option>
-                    <option>baleho 9</option>
-                    <option>baleho 10</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-3 mb-3">
-                  <label htmlFor="price">Price</label>
+                  <label htmlFor="contact">Contact</label>
                   <input
                     type="text"
-                    name="price"
-                    id="price"
-                    placeholder="Masukkan harga"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
+                    name="contact"
+                    id="contact"
+                    placeholder="Masukkan Kontak"
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
                     required
                     className="input input-bordered w-full "
                   />
@@ -281,7 +261,7 @@ const Product = () => {
                   type="button"
                   className="btn"
                   onClick={() =>
-                    document.getElementById("addProductModal").close()
+                    document.getElementById("addServiceModal").close()
                   }
                 >
                   Close
@@ -301,7 +281,7 @@ const Product = () => {
               <th>Title</th>
               <th>Description</th>
               <th>Kategori</th>
-              <th>Price</th>
+              <th>Contact</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -325,7 +305,7 @@ const Product = () => {
                   <td>{product.title}</td>
                   <td>{product.description}</td>
                   <td>{product.category}</td>
-                  <td>{product.price}</td>
+                  <td>{product.contact}</td>
                   <td>
                     <button
                       className="btn btn-error"
@@ -343,4 +323,4 @@ const Product = () => {
   );
 };
 
-export default Product;
+export default Services;

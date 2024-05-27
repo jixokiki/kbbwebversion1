@@ -140,6 +140,8 @@ export default function Home() {
   useEffect(() => {
     if (user && userProfile.role === "admin") {
       router.push("/admin");
+    }else if (user && userProfile.role === "gudang") {
+      router.push("/gudang");
     }else if (user && userProfile.role === "user") {
       // Jika user adalah admin, kita dapat menampilkan alert selamat datang
       // dan menampilkan nama admin dari userProfile

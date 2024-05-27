@@ -65,6 +65,8 @@ const SignIn = () => {
             router.push("/");
           } else if (docSnap.data().role == "admin") {
             router.push("/admin");
+          }else if (docSnap.data().role == "gudang") {
+            router.push("/gudang");
           }
           localStorage.setItem("userProfile", JSON.stringify(docSnap.data()));
         }

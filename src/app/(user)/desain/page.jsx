@@ -19,6 +19,7 @@ import {
 } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import useProduct from "@/app/hooks/useProduct";
 
 const Desain = () => {
   const { user, userProfile } = useAuth();
@@ -36,6 +37,8 @@ const Desain = () => {
   const [downloadUrl, setDownloadUrl] = useState("");
   const [percentage, setPercentage] = useState(null);
   const [data, setData] = useState([]);
+  const { isInCart, removeFromCart, addToCart, cart, totalPrice } = useProduct();
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -51,13 +54,35 @@ const Desain = () => {
         console.log(error);
       }
     );
-    const uploadFile = async () => {
+
+    return () => {
+      unsub();
+    };
+  }, []);
+
+  useEffect(() => {
+    const snapScript = "https://app.sandbox.midtrans.com/snap/snap.js";
+    const clientKey = process.env.NEXT_PUBLIC_CLIENT;
+    const script = document.createElement("script");
+    script.src = snapScript;
+    script.setAttribute("data-client-key", clientKey);
+    script.async = true;
+
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const uploadFile = async (file) => {
+    return new Promise((resolve, reject) => {
       const storageRef = ref(
         storage,
         "desain/" +
           new Date().getTime() +
           file.name.replace(" ", "%20") +
-          "UEU"
+          "KBB"
       );
       const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -77,56 +102,181 @@ const Desain = () => {
           }
         },
         (error) => {
-          console.log(error);
+          reject(error);
         },
         () => {
           getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-            setDownloadUrl(downloadURL);
+            resolve(downloadURL);
           });
         }
       );
-    };
-    file && uploadFile();
-    return () => {
-      unsub();
-    };
-  }, [file]);
+    });
+  };
+
+  const uploadFileTransfer = async (file) => {
+    return new Promise((resolve, reject) => {
+      const storageRef = ref(
+        storage,
+        "payments/" +
+          new Date().getTime() +
+          file.name.replace(" ", "%20") +
+          "KBB"
+      );
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setPercentage(progress);
+          switch (snapshot.state) {
+            case "paused":
+              console.log("Upload is paused");
+              break;
+            case "running":
+              console.log("Upload is running");
+              break;
+          }
+        },
+        (error) => {
+          reject(error);
+        },
+        () => {
+          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+            resolve(downloadURL);
+          });
+        }
+      );
+    });
+  };
+  const generateWhatsAppMessage = () => {
+    const message = cart
+      .map((item) => `- Pesanan ${item.title}: ${numberToRupiah(item.price)}`)
+      .join("\n");
+    const total = numberToRupiah(totalPrice);
+    return `*Pesanan Baru KBB Assets*\n-------------------------------------\nUser\nNama : _${userProfile.name}_\nEmail : _${userProfile.email}_\n-------------------------------------\nDetail pesanan\n-------------------------------------\n${message}\n-------------------------------------\n*Total*: ${total}`;
+  };
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    // Collect user data and perform necessary operations
-    const productData = {
-      id: new Date().getTime() + title + "UEU",
-      image: downloadUrl,
-      title: title,
-      description: description,
-      category: category,
-      price: price,
-    };
 
     try {
-      await setDoc(
-        doc(db, "desain", new Date().getTime() + productData.title + "UEU"),
-        {
-          ...productData,
-          timeStamp: serverTimestamp(),
-        }
-      );
+      const downloadURL = await uploadFile(file);
+      const productData = {
+        id: new Date().getTime() + user.uid + "DESAIN",
+        image: downloadURL,
+        title: title,
+        description: description,
+        category: category,
+        price: price,
+      };
+
+      await setDoc(doc(db, "desain", productData.id), {
+        ...productData,
+        timeStamp: serverTimestamp(),
+      });
+
       setFile(null);
       setTitle("");
       setDescription("");
       setCategory("fikom");
       setPrice("");
+      setDownloadUrl("");
+      setPercentage(null);
+      alert("Desain berhasil ditambahkan!");
       document.getElementById("addProductModal").close();
     } catch (error) {
       console.log(error);
     }
   };
 
+  const handlePayment = async (e) => {
+    e.preventDefault();
+    setIsPaymentLoading(true);
+
+    try {
+      const downloadURL = await uploadFile(file);
+
+      const transactionDetails = {
+        order_id: `ORDER-${new Date().getTime()}`,
+        gross_amount: totalPrice,
+      };
+
+      const customerDetails = {
+        first_name: userProfile.name,
+        email: userProfile.email,
+      };
+
+      const itemDetails = cart.map((item) => ({
+        id: item.id,
+        price: item.price,
+        quantity: 1,
+        name: item.title,
+      }));
+
+      const paymentData = {
+        transaction_details: transactionDetails,
+        customer_details: customerDetails,
+        item_details: itemDetails,
+      };
+
+      const response = await fetch("/api/createTransaction", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(paymentData),
+      });
+
+      const result = await response.json();
+
+      if (result.token) {
+        window.snap.pay(result.token, {
+          onSuccess: async (result) => {
+            try {
+              await setDoc(
+                doc(db, "payments", new Date().getTime() + user.uid + "KKB"),
+                {
+                  id: new Date().getTime() + user.uid + "KKB",
+                  image: downloadURL,
+                  title: "Payment Proof",
+                  user: userProfile.name,
+                  email: userProfile.email,
+                  amount: totalPrice,
+                  transactionResult: result,
+                  timeStamp: serverTimestamp(),
+                }
+              );
+              setFile(null);
+              alert("Pembayaran berhasil dilakukan!");
+              document.getElementById("paymentModal").close();
+            } catch (error) {
+              console.log(error);
+            }
+          },
+          onPending: (result) => {
+            alert("Pembayaran Anda tertunda.");
+          },
+          onError: (result) => {
+            alert("Pembayaran gagal.");
+          },
+          onClose: () => {
+            alert("Anda menutup jendela pembayaran.");
+          },
+        });
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsPaymentLoading(false);
+    }
+  };
+
   const handleDelete = async (id, image) => {
     try {
       await deleteDoc(doc(db, "desain", id));
-      setData(data.filter((item) => item.id !== id));
+      setData(filteredData.filter((item) => item.id !== id));
 
       const desertRef = ref(storage, image);
       await deleteObject(desertRef);
@@ -135,35 +285,97 @@ const Desain = () => {
     }
   };
 
+  const handleUploadPaymentProof = async (e) => {
+    e.preventDefault();
+
+    try {
+      const downloadURL = await uploadFileTransfer(file);
+      const productData = {
+        id: new Date().getTime() + user.uid + "Bukti Transfer",
+        image: downloadURL,
+        title: title,
+        description: description,
+        category: category,
+        price: price,
+      };
+
+      await setDoc(doc(db, "payments", productData.id), {
+        ...productData,
+        timeStamp: serverTimestamp(),
+      });
+
+      setFile(null);
+      setTitle("");
+      setDescription("");
+      setCategory("fikom");
+      setPrice("");
+      setDownloadUrl("");
+      setPercentage(null);
+      alert("Bukti Payment berhasil ditambahkan!");
+      document.getElementById("addProductModal").close();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [searchInput, setSearchInput] = useState("");
+    // Menyaring produk berdasarkan kategori yang dipilih
+  const filteredData =
+    data && categoryFilter === "all"
+      ? data
+      : data.filter(
+          (product) => product.category.toLowerCase() === categoryFilter
+        );
+
+  // Fungsi untuk memperbarui state pencarian ketika nilai input berubah
+  const handleSearchInputChange = (e) => {
+    setSearchInput(e.target.value.toLowerCase());
+  };
+  const handleCategoryFilterChange = (e) => {
+    setCategoryFilter(e.target.value.toLowerCase());
+  };
+
+    // Fungsi untuk memilih opsi dropdown sesuai dengan input pencarian
+    useEffect(() => {
+      const selectElement = document.querySelector(".select");
+      // Melakukan perulangan pada setiap opsi dropdown
+      selectElement.childNodes.forEach((option) => {
+        if (option.value.toLowerCase().includes(searchInput)) {
+          // Jika nilai opsi cocok dengan input pengguna, opsi tersebut akan dipilih
+          option.selected = true;
+        }
+      });
+      // Memperbarui state kategori filter sesuai dengan input pencarian
+      setCategoryFilter(searchInput);
+    }, [searchInput]);
+
   return (
     <div className="w-[100%] mx-auto mt-32">
-      <Navbar/>
+      <Navbar />
       <div className=" w-[90%] flex justify-between items-center gap-3 mb-10">
-        <h1 className="w[50%] mx-auto text-3xl font-semibold mb-3" >Desain List</h1>
-        <input
-          type="text"
-          placeholder="Search here"
-          className="input input-bordered w-full max-w-xs"
-        />
-        <label className="form-control w-full max-w-xs">
-          <select className="select select-bordered">
-            <option>All</option>
-            {/* <option>Fikom</option>
-            <option>Fasilkom</option>
-            <option>DKV</option>
-            <option>Fasilkom</option>
-            <option>Baleho 1</option>
-            <option>Baleho 2</option>
-            <option>Baleho 3</option>
-            <option>Baleho 4</option>
-            <option>Baleho 5</option>
-            <option>Baleho 6</option>
-            <option>Baleho 7</option>
-            <option>Baleho 8</option>
-            <option>Baleho 9</option>
-            <option>Baleho 10</option> */}
+        <h1 className="w[50%] mx-auto text-3xl font-semibold mb-3">Paddy List</h1>
+          <input
+            type="text"
+            className="input input-bordered"
+            value={searchInput}
+            onChange={handleSearchInputChange}
+          />
+          <select
+            className="select select-bordered w-full max-w-xs"
+            onChange={handleCategoryFilterChange}
+            value={categoryFilter}
+          >
+            <option value="all">All</option>
+            <option value="3kg">3 Kg</option>
+            <option value="5kg">5 Kg</option>
+            <option value="10kg">10 Kg</option>
+            <option value="15kg">15 Kg</option>
+            <option value="20kg">20 Kg</option>
+            <option value="25kg">25 Kg</option>
           </select>
-        </label>
+
+
         <button
           className="btn bg-teal-600 hover:bg-teal-500 text-white"
           onClick={() => document.getElementById("addProductModal").showModal()}
@@ -225,28 +437,20 @@ const Desain = () => {
                   ></textarea>
                 </div>
                 <div className="flex flex-col gap-3 mb-3">
-                  <label htmlFor="category">Kategori</label>
+                  <label htmlFor="category">Category</label>
                   <select
                     name="category"
                     id="category"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    required
-                    className="select select-bordered w-full"
+                    className="select select-bordered w-full "
                   >
-                    <option>fikom</option>
-                    <option>fasilkom</option>
-                    <option>dkv</option>
-                    <option>baleho 1</option>
-                    <option>baleho 2</option>
-                    <option>baleho 3</option>
-                    <option>baleho 4</option>
-                    <option>baleho 5</option>
-                    <option>baleho 6</option>
-                    <option>baleho 7</option>
-                    <option>baleho 8</option>
-                    <option>baleho 9</option>
-                    <option>baleho 10</option>
+                    <option value="3Kg">3 Kg</option>
+                    <option value="5Kg ">5 Kg</option>
+                    <option value="10Kg">10 Kg</option>
+                    <option value="15Kg">15 Kg</option>
+                    <option value="20Kg">20 Kg</option>
+                    <option value="25Kg">25 Kg</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-3 mb-3">
@@ -262,42 +466,29 @@ const Desain = () => {
                     className="input input-bordered w-full "
                   />
                 </div>
-
-                <button
-                  type="submit"
-                  className={`w-full btn ${
-                    percentage !== null && percentage < 100
-                      ? "btn-disabled"
-                      : "bg-teal-500"
-                  }`}
-                >
-                  Submit
-                </button>
               </div>
-            </form>
-            <div className="modal-action">
-              <form method="dialog" className="flex gap-1">
+              <div className="modal-action">
+                <button className="btn" type="submit">
+                  Add
+                </button>
                 <button
-                  type="button"
                   className="btn"
-                  onClick={() =>
-                    document.getElementById("addProductModal").close()
-                  }
+                  type="button"
+                  onClick={() => document.getElementById("addProductModal").close()}
                 >
                   Close
                 </button>
-              </form>
-            </div>
+              </div>
+            </form>
           </div>
         </dialog>
       </div>
 
       <div className="overflow-x-auto ">
         <table className="table">
-          {/* head */}
           <thead>
             <tr>
-              <th>Image</th>
+              <th>Bukti Transfer</th>
               <th>Title</th>
               <th>Description</th>
               <th>Kategori</th>
@@ -306,9 +497,8 @@ const Desain = () => {
             </tr>
           </thead>
           <tbody>
-            {/* row 1 */}
-            {data &&
-              data.map((product) => (
+            {filteredData &&
+              filteredData.map((product) => (
                 <tr key={product.id}>
                   <td>
                     <div className="flex items-center gap-3">
@@ -328,6 +518,16 @@ const Desain = () => {
                   <td>{product.price}</td>
                   <td>
                     <button
+                      className="btn btn-success"
+                      onClick={() =>
+                        isInCart(product)
+                          ? removeFromCart(product)
+                          : addToCart(product)
+                      }
+                    >
+                      {isInCart(product) ? "Remove from Cart" : "Add to Cart"}
+                    </button>
+                    <button
                       className="btn btn-error"
                       onClick={() => handleDelete(product.id, product.image)}
                     >
@@ -339,8 +539,70 @@ const Desain = () => {
           </tbody>
         </table>
       </div>
+
+      <div className="fixed bottom-5 right-5">
+        <button
+          className={`btn btn-primary ${isPaymentLoading ? "loading" : ""}`}
+          onClick={() => document.getElementById("paymentModal").showModal()}
+        >
+          {isPaymentLoading ? "Processing..." : `Upload Payment Proof`}
+        </button>
+      </div>
+
+      {/* Modal for payment proof */}
+      <dialog id="paymentModal" className="modal">
+        <div className="modal-box">
+          <h3 className="font-semibold text-xl">Upload Payment Proof</h3>
+          <form onSubmit={handleUploadPaymentProof}>
+            <div className="py-4">
+              <div className="flex flex-col gap-3 mb-3">
+                <label htmlFor="paymentProof">Payment Proof</label>
+                <input
+                  type="file"
+                  name="paymentProof"
+                  id="paymentProof"
+                  required
+                  onChange={(e) => setFile(e.target.files[0])}
+                />
+                {percentage !== null && percentage < 100 ? (
+                  <progress
+                    className="progress progress-accent w-56"
+                    value={percentage}
+                    max="100"
+                  ></progress>
+                ) : (
+                  percentage === 100 && (
+                    <div className="text-green-500 font-semibold">
+                      Upload Completed
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+            <div className="modal-action">
+              <button className="btn" type="submit">
+                Submit
+              </button>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => document.getElementById("paymentModal").close()}
+              >
+                Close
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
     </div>
   );
+};
+
+const numberToRupiah = (number) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+  }).format(number);
 };
 
 export default Desain;

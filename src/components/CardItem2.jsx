@@ -1,20 +1,17 @@
+import React from "react";
 import { getDownloadURL, ref } from "firebase/storage";
 import { storage } from "@/firebase/firebase";
 
-const CardItem2 = ({ imageUrl, fakultas, judul, deskripsi, harga }) => {
+const CardItem2 = ({ imageUrl, fakultas, judul, deskripsi, harga, handleSendToGudang }) => {
   const handleDownload = async () => {
     try {
-      // Mendapatkan URL unduhan gambar dari Firebase Storage
       const imageRef = ref(storage, imageUrl);
       const downloadURL = await getDownloadURL(imageRef);
-
-      // Mendapatkan nama file dari URL unduhan
       const fileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
 
-      // Melakukan pengunduhan gambar dengan nama file dari URL
       const link = document.createElement('a');
       link.href = downloadURL;
-      link.setAttribute('download', fileName); // Gunakan nama file dari URL
+      link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -24,15 +21,20 @@ const CardItem2 = ({ imageUrl, fakultas, judul, deskripsi, harga }) => {
   };
 
   return (
-    <div>
-      <img src={imageUrl} alt="Desain" />
-      <div>
-        <h3>{judul}</h3>
+    <div className="card w-96 bg-base-100 shadow-xl">
+      <figure>
+        <img src={imageUrl} alt={judul} />
+      </figure>
+      <div className="card-body">
+        <h2 className="card-title">{judul}</h2>
         <p>{deskripsi}</p>
-        <p>{fakultas}</p>
-        <p>{harga}</p>
+        <p>Category: {fakultas}</p>
+        <p>Price: {harga}</p>
+        <div className="card-actions justify-end">
+          <button className="btn btn-primary" onClick={handleDownload}>Download</button>
+          <button className="btn btn-secondary" onClick={handleSendToGudang}>Send to Gudang</button>
+        </div>
       </div>
-      <button onClick={handleDownload} style={{ backgroundColor: '#4caf50', color: 'white', padding: '10px 20px', border: 'none', fontSize: '16px', cursor: 'pointer' }}>Download</button>
     </div>
   );
 };
