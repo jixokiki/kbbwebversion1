@@ -36,6 +36,18 @@ const CardItem2 = ({ imageUrl, fakultas, judul, deskripsi, harga, handleSendToGu
         </div>
       </div>
     </div>
+  //   <div className="card">
+  //   <img src={imageUrl} alt={judul} className="card-img-top" />
+  //   <div className="card-body">
+  //     <h5 className="card-title">{judul}</h5>
+  //     <p className="card-text">{deskripsi}</p>
+  //     <p className="card-text">Category: {fakultas}</p>
+  //     <p className="card-text">Price: {harga}</p>
+  //     <button className="btn btn-primary" onClick={onSendToAdmin}>
+  //       Send to Admin
+  //     </button>
+  //   </div>
+  // </div>
   );
 };
 

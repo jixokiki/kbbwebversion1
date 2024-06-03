@@ -1,6 +1,5 @@
 "use client";
 import useAuth from "@/app/hooks/useAuth";
-import NavbarAdmin from "@/components/NavbarAdmin";
 import NavbarGudang from "@/components/NavbarGudang";
 import { db, storage } from "@/firebase/firebase";
 import {
@@ -10,6 +9,7 @@ import {
   onSnapshot,
   serverTimestamp,
   setDoc,
+  updateDoc,
 } from "firebase/firestore";
 import {
   deleteObject,
@@ -23,19 +23,26 @@ import React, { useEffect, useState } from "react";
 const Product = () => {
   const { user, userProfile } = useAuth();
   const router = useRouter();
+
   useEffect(() => {
     if (user && userProfile.role === "user") {
       router.push("/");
     }
   }, [user, userProfile, router]);
+
   const [file, setFile] = useState(null);
-  const [title, setTitle] = useState("");
+  const [productName, setProductName] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("fikom");
+  const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [downloadUrl, setDownloadUrl] = useState("");
   const [percentage, setPercentage] = useState(null);
   const [data, setData] = useState([]);
+  const [warehouseDataKg, setWarehouseDataKg] = useState([]);
+  const [warehouseDataPcs, setWarehouseDataPcs] = useState([]);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editingWarehouseProduct, setEditingWarehouseProduct] = useState(null);
+  const [unitType, setUnitType] = useState("kg");
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -51,21 +58,46 @@ const Product = () => {
         console.log(error);
       }
     );
+
+    const warehouseKgUnsub = onSnapshot(
+      collection(db, "warehouseKg"),
+      (snapshot) => {
+        let list = [];
+        snapshot.docs.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() });
+        });
+        setWarehouseDataKg(list);
+      },
+      (error) => {
+        console.log(error);
+      }
+    );
+
+    const warehousePcsUnsub = onSnapshot(
+      collection(db, "warehousePcs"),
+      (snapshot) => {
+        let list = [];
+        snapshot.docs.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() });
+        });
+        setWarehouseDataPcs(list);
+      },
+      (error) => {
+        console.log(error);
+      }
+    );
+
     const uploadFile = async () => {
       const storageRef = ref(
         storage,
-        "products/" +
-          new Date().getTime() +
-          file.name.replace(" ", "%20") +
-          "KBB"
+        "products/" + new Date().getTime() + file.name.replace(" ", "%20") + "KBB"
       );
       const uploadTask = uploadBytesResumable(storageRef, file);
 
       uploadTask.on(
         "state_changed",
         (snapshot) => {
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           setPercentage(progress);
           switch (snapshot.state) {
             case "paused":
@@ -86,34 +118,40 @@ const Product = () => {
         }
       );
     };
+
     file && uploadFile();
+
     return () => {
       unsub();
+      warehouseKgUnsub();
+      warehousePcsUnsub();
     };
   }, [file]);
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    // Collect user data and perform necessary operations
     const productData = {
-      id: new Date().getTime() + title + "KBB",
+      id: new Date().getTime() + productName + "KBB",
+      date: new Date().toLocaleDateString(),
+      productName,
+      description,
+      category,
+      price,
       image: downloadUrl,
-      title: title,
-      description: description,
-      category: category,
-      price: price,
+      timeStamp: serverTimestamp(), // Tambahkan serverTimestamp di sini
     };
-
+  
     try {
       await setDoc(
-        doc(db, "products", new Date().getTime() + productData.title + "KBB"),
-        {
-          ...productData,
-          timeStamp: serverTimestamp(),
-        }
+        doc(
+          db,
+          "products",
+          new Date().getTime() + productData.productName + "KBB"
+        ),
+        productData
       );
       setFile(null);
-      setTitle("");
+      setProductName("");
       setDescription("");
       setCategory("fikom");
       setPrice("");
@@ -122,14 +160,88 @@ const Product = () => {
       console.log(error);
     }
   };
+  
 
-  const handleDelete = async (id, image) => {
+  const calculateStock = (initialStock, stockIn, stockOut) => {
+    return initialStock + stockIn - stockOut;
+  };
+
+  const handleAddWarehouseProduct = async (e) => {
+    e.preventDefault();
+    let initialStock = parseFloat(description);
+    let stockIn = parseFloat(category);
+    let stockOut = parseFloat(price);
+  
+    let totalStock = calculateStock(initialStock, stockIn, stockOut);
+  
+    const warehouseProductData = {
+      id: new Date().getTime() + productName + (unitType === "kg" ? "WarehouseKg" : "WarehousePcs"),
+      date: new Date().toLocaleDateString(),
+      productName,
+      stock: initialStock,
+      stockIn,
+      stockOut,
+      totalStock,
+      unitType,
+      timeStamp: serverTimestamp(), // Tambahkan serverTimestamp di sini
+    };
+  
     try {
-      await deleteDoc(doc(db, "products", id));
-      setData(data.filter((item) => item.id !== id));
+      await setDoc(
+        doc(
+          db,
+          unitType === "kg" ? "warehouseKg" : "warehousePcs",
+          warehouseProductData.id
+        ),
+        warehouseProductData
+      );
+      setFile(null);
+      setProductName("");
+      setDescription("");
+      setCategory("");
+      setPrice("");
+      document.getElementById("addWarehouseProductModal").close();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
 
-      const desertRef = ref(storage, image);
-      await deleteObject(desertRef);
+  const handleDeleteWarehouseProduct = async (id, unit) => {
+    try {
+      await deleteDoc(doc(db, unit === "kg" ? "warehouseKg" : "warehousePcs", id));
+      if (unit === "kg") {
+        setWarehouseDataKg(warehouseDataKg.filter((item) => item.id !== id));
+      } else {
+        setWarehouseDataPcs(warehouseDataPcs.filter((item) => item.id !== id));
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleUpdateWarehouseProduct = async (e) => {
+    e.preventDefault();
+    const updatedWarehouseProductData = {
+      productName,
+      stock: parseFloat(description),
+      stockIn: parseFloat(category),
+      stockOut: parseFloat(price),
+      timeStamp: serverTimestamp(),
+      unitType,
+    };
+
+    try {
+      await updateDoc(doc(db, unitType === "kg" ? "warehouseKg" : "warehousePcs", editingWarehouseProduct.id), {
+        ...updatedWarehouseProductData,
+      });
+      setFile(null);
+      setProductName("");
+      setDescription("");
+      setCategory("");
+      setPrice("");
+      setEditingWarehouseProduct(null);
+      document.getElementById("updateWarehouseProductModal").close();
     } catch (error) {
       console.log(error);
     }
@@ -152,7 +264,6 @@ const Product = () => {
             <option>Fikom</option>
             <option>Fasilkom</option>
             <option>DKV</option>
-            <option>Fasilkom</option>
             <option>Baleho 1</option>
             <option>Baleho 2</option>
             <option>Baleho 3</option>
@@ -169,177 +280,223 @@ const Product = () => {
           className="btn bg-teal-600 hover:bg-teal-500 text-white"
           onClick={() => document.getElementById("addProductModal").showModal()}
         >
-          Add Product
+          Add New Product
         </button>
-        {/* Modal add user */}
-        <dialog id="addProductModal" className="modal">
-          <div className="modal-box">
-            <h3 className="font-semibold text-xl">Add Product</h3>
-            <form onSubmit={handleAddProduct}>
-              <div className="py-4">
-                <div className="flex flex-col gap-3 mb-3">
-                  <label htmlFor="image">Image</label>
-                  <input
-                    type="file"
-                    name="image"
-                    id="image"
-                    required
-                    onChange={(e) => setFile(e.target.files[0])}
-                  />
-                  {percentage !== null && percentage < 100 ? (
-                    <progress
-                      className="progress progress-accent w-56"
-                      value={percentage}
-                      max="100"
-                    ></progress>
-                  ) : (
-                    percentage === 100 && (
-                      <div className="text-green-500 font-semibold">
-                        Upload Completed
-                      </div>
-                    )
-                  )}
-                </div>
-                <div className="flex flex-col gap-3 mb-3">
-                  <label htmlFor="title">Title</label>
-                  <input
-                    type="text"
-                    name="title"
-                    id="title"
-                    placeholder="Masukkan judul"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                    className="input input-bordered w-full "
-                  />
-                </div>
-                <div className="flex flex-col gap-3 mb-3">
-                  <label htmlFor="description">Description</label>
-                  <textarea
-                    name="description"
-                    id="description"
-                    placeholder="Masukkan judul"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    required
-                    className="textarea textarea-accent w-full"
-                  ></textarea>
-                </div>
-                <div className="flex flex-col gap-3 mb-3">
-                  <label htmlFor="category">Kategori</label>
-                  <select
-                    name="category"
-                    id="category"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    required
-                    className="select select-bordered w-full"
-                  >
-                    <option>fikom</option>
-                    <option>fasilkom</option>
-                    <option>dkv</option>
-                    <option>baleho 1</option>
-                    <option>baleho 2</option>
-                    <option>baleho 3</option>
-                    <option>baleho 4</option>
-                    <option>baleho 5</option>
-                    <option>baleho 6</option>
-                    <option>baleho 7</option>
-                    <option>baleho 8</option>
-                    <option>baleho 9</option>
-                    <option>baleho 10</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-3 mb-3">
-                  <label htmlFor="price">Price</label>
-                  <input
-                    type="text"
-                    name="price"
-                    id="price"
-                    placeholder="Masukkan harga"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    required
-                    className="input input-bordered w-full "
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className={`w-full btn ${
-                    percentage !== null && percentage < 100
-                      ? "btn-disabled"
-                      : "bg-teal-500"
-                  }`}
-                >
-                  Submit
-                </button>
-              </div>
-            </form>
-            <div className="modal-action">
-              <form method="dialog" className="flex gap-1">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() =>
-                    document.getElementById("addProductModal").close()
-                  }
-                >
-                  Close
-                </button>
-              </form>
-            </div>
-          </div>
-        </dialog>
+        <button
+          className="btn bg-teal-600 hover:bg-teal-500 text-white"
+          onClick={() => document.getElementById("addWarehouseProductModal").showModal()}
+        >
+          Add New Warehouse Product
+        </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="table">
-          {/* head */}
+      <div className="overflow-x-auto w-full">
+        <table className="table w-full">
           <thead>
             <tr>
-              <th>Image</th>
-              <th>Title</th>
-              <th>Description</th>
-              <th>Kategori</th>
-              <th>Price</th>
-              <th>Action</th>
+              <th>Date</th>
+              <th>Product Name</th>
+              <th>Unit Type</th>
+              <th>Stock</th>
+              <th>Stock In</th>
+              <th>Stock Out</th>
+              <th>Total Stock</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {/* row 1 */}
-            {data &&
-              data.map((product) => (
-                <tr key={product.id}>
-                  <td>
-                    <div className="flex items-center gap-3">
-                      <div className="avatar">
-                        <div className="mask mask-squircle w-12 h-12">
-                          <img
-                            src={product.image}
-                            alt="Avatar Tailwind CSS Component"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{product.title}</td>
-                  <td>{product.description}</td>
-                  <td>{product.category}</td>
-                  <td>{product.price}</td>
-                  <td>
-                    <button
-                      className="btn btn-error"
-                      onClick={() => handleDelete(product.id, product.image)}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
+            {warehouseDataKg.map((item) => (
+              <tr key={item.id}>
+                <td>{item.date}</td>
+                <td>{item.productName}</td>
+                <td>{item.unitType}</td>
+                <td>{item.stock}</td>
+                <td>{item.stockIn}</td>
+                <td>{item.stockOut}</td>
+                <td>{item.totalStock}</td>
+                <td>
+                  <button
+                    className="btn bg-orange-500 hover:bg-orange-400 text-white"
+                      onClick={() => {
+                        setEditingWarehouseProduct(item);  // Pastikan item disesuaikan dengan object data di tabel
+                        document.getElementById("updateWarehouseProductModal").showModal();
+                      }}
+                  >
+                  Edit
+                  </button>
+
+                  <button
+                    className="btn bg-red-600 hover:bg-red-500 text-white"
+                    onClick={() => handleDeleteWarehouseProduct(item.id, "kg")}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {warehouseDataPcs.map((item) => (
+              <tr key={item.id}>
+                <td>{item.date}</td>
+                <td>{item.productName}</td>
+                <td>{item.unitType}</td>
+                <td>{item.stock}</td>
+                <td>{item.stockIn}</td>
+                <td>{item.stockOut}</td>
+                <td>{item.totalStock}</td>
+                <td>
+                  <button
+                    className="btn bg-orange-500 hover:bg-orange-400 text-white"
+                    onClick={() => {
+                      setEditingWarehouseProduct(item);
+                      document.getElementById("updateWarehouseProductModal").showModal();
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="btn bg-red-600 hover:bg-red-500 text-white"
+                    onClick={() => handleDeleteWarehouseProduct(item.id, "pcs")}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
+
+      <dialog id="addProductModal" className="modal">
+        <form method="dialog" className="modal-box">
+          <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+            ✕
+          </button>
+          <h3 className="font-bold text-lg">Add New Product</h3>
+          <input
+            type="text"
+            placeholder="Product Name"
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <input
+            type="text"
+            placeholder="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <input
+            type="text"
+            placeholder="Category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <input
+            type="number"
+            placeholder="Price"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files[0])}
+            className="file-input file-input-bordered w-full my-2"
+          />
+          <button className="btn bg-teal-600 hover:bg-teal-500 text-white" onClick={handleAddProduct}>
+            Submit
+          </button>
+        </form>
+      </dialog>
+
+      <dialog id="addWarehouseProductModal" className="modal">
+        <form method="dialog" className="modal-box">
+          <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+            ✕
+          </button>
+          <h3 className="font-bold text-lg">Add New Warehouse Product</h3>
+          <input
+            type="text"
+            placeholder="Product Name"
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <input
+            type="number"
+            placeholder="Initial Stock"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <input
+            type="number"
+            placeholder="Stock In"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <input
+            type="number"
+            placeholder="Stock Out"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <label className="label cursor-pointer">
+            <span className="label-text">Unit Type</span>
+            <select value={unitType} onChange={(e) => setUnitType(e.target.value)} className="select select-bordered">
+              <option value="kg">Kg</option>
+              <option value="pcs">Pcs</option>
+            </select>
+          </label>
+          <button className="btn bg-teal-600 hover:bg-teal-500 text-white" onClick={handleAddWarehouseProduct}>
+            Submit
+          </button>
+        </form>
+      </dialog>
+
+      <dialog id="updateWarehouseProductModal" className="modal">
+        <form method="dialog" className="modal-box">
+          <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+            ✕
+          </button>
+          <h3 className="font-bold text-lg">Update Warehouse Product</h3>
+          <input
+            type="text"
+            placeholder="Product Name"
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <input
+            type="number"
+            placeholder="Initial Stock"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <input
+            type="number"
+            placeholder="Stock In"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <input
+            type="number"
+            placeholder="Stock Out"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className="input input-bordered w-full my-2"
+          />
+          <button className="btn bg-teal-600 hover:bg-teal-500 text-white" onClick={handleUpdateWarehouseProduct}>
+            Submit
+          </button>
+        </form>
+      </dialog>
     </div>
   );
 };
