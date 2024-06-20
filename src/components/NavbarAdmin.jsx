@@ -49,7 +49,15 @@ const NavbarAdmin = () => {
               href={"/admin/payments"}
               className="px-4 py-3  transition-all duration-300 hover:bg-teal-500 hover:text-white rounded"
             >
-              Bukti Payments
+              Acc Product
+            </Link>
+          </li>
+          <li className="md:mr-3">
+            <Link
+              href={"/admin/upload"}
+              className="px-4 py-3  transition-all duration-300 hover:bg-teal-500 hover:text-white rounded"
+            >
+              Upload Payment
             </Link>
           </li>
           <li className="md:mr-3">

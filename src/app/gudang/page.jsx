@@ -31,7 +31,7 @@ const Gudang = () => {
       <NavbarGudang />
       <div className="flex flex-col items-center">
         <Image
-          src={"/assets/kbbLogo.jpeg"}
+          src={"/assets/balehologo.jpg"}
           width={1000 / 2}
           height={1125 / 4}
           alt="Logo"

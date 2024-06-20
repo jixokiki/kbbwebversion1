@@ -35,6 +35,7 @@ const Product = () => {
   const [downloadUrl, setDownloadUrl] = useState("");
   const [percentage, setPercentage] = useState(null);
   const [data, setData] = useState([]);
+  const [status, setStatus] = useState("available");
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -101,6 +102,7 @@ const Product = () => {
       description: description,
       category: category,
       price: price,
+      status: status,  // Add status to product data
     };
 
     try {
@@ -116,6 +118,7 @@ const Product = () => {
       setDescription("");
       setCategory("fikom");
       setPrice("");
+      setStatus("available");
       document.getElementById("addProductModal").close();
     } catch (error) {
       console.log(error);
@@ -262,6 +265,20 @@ const Product = () => {
                     className="input input-bordered w-full "
                   />
                 </div>
+                <div className="flex flex-col gap-3 mb-3">
+                  <label htmlFor="status">Status</label>
+                  <select
+                    name="status"
+                    id="status"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    required
+                    className="select select-bordered w-full"
+                  >
+                    <option value="available">Available</option>
+                    <option value="unavailable">Unavailable</option>
+                  </select>
+                </div>
 
                 <button
                   type="submit"
@@ -302,6 +319,7 @@ const Product = () => {
               <th>Description</th>
               <th>Kategori</th>
               <th>Price</th>
+              <th>Status</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -326,6 +344,7 @@ const Product = () => {
                   <td>{product.description}</td>
                   <td>{product.category}</td>
                   <td>{product.price}</td>
+                  <td>{product.status}</td>
                   <td>
                     <button
                       className="btn btn-error"

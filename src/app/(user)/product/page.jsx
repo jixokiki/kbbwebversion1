@@ -1,301 +1,30 @@
-"use client";
+"use client"
+import React, { useEffect, useState } from "react";
 import useAuth from "@/app/hooks/useAuth";
 import useProduct from "@/app/hooks/useProduct";
 import CardItem from "@/components/CardItem";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { db } from "@/firebase/firebase";
-import { collection, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  updateDoc,
+  serverTimestamp,
+  doc,
+} from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
-
-// const Product = () => {
-//   const { user, userProfile } = useAuth();
-//   const router = useRouter();
-
-//   useEffect(() => {
-//     if (user && userProfile.role === "admin") {
-//       router.push("/admin");
-//     }
-//   }, [user, userProfile, router]);
-
-//   useEffect(() => {
-//     const unsubProduct = onSnapshot(
-//       collection(db, "products"),
-//       (snapshot) => {
-//         let list = [];
-//         snapshot.docs.forEach((doc) => {
-//           list.push({ id: doc.id, ...doc.data() });
-//         });
-//         setData(list);
-//       },
-//       (error) => {
-//         console.log(error);
-//       }
-//     );
-//     return () => {
-//       unsubProduct();
-//     };
-//   }, []);
-
-//   const { isInCart, removeFromCart, addToCart, data, setData } = useProduct();
-//   return (
-//     <div>
-//       <Navbar />
-//       <div className="p-8 md:p-24 mt-10">
-//         <div className="flex justify-between mb-10">
-//           <h2 className="text-3xl mb-3">All Products</h2>
-//           <input type="text" className="input input-bordered" />
-//           <select className="select select-bordered w-full max-w-xs">
-//             <option value={"all"}>All</option>
-//             <option value={"fikom"}>Fikom</option>
-//             <option value={"dkv"}>DKV</option>
-//             <option value={"Fasilkom"}>Fasilkom</option>
-//           </select>
-//         </div>
-//         <div className="grid grid-cols-1 md:grid-cols-3 place-items-center gap-6">
-//           {data.map((product) => (
-//             <CardItem
-//               key={product.id}
-//               imageUrl={product.image}
-//               fakultas={product.category}
-//               judul={product.title}
-//               deskripsi={product.description}
-//               harga={product.price}
-//               addToCart={() => addToCart(product)}
-//               removeFromCart={() => removeFromCart(product)}
-//               isInCart={isInCart(product.id)}
-//             />
-//           ))}
-//         </div>
-//       </div>
-//       <Footer />
-//     </div>
-//   );
-// };
-
-// export default Product;
-
-//PEMBARUAN DENGAN MENAMBAHKAN FUNGSI SELECT OPTION
-// const Product = () => {
-//   const { user, userProfile } = useAuth();
-//   const router = useRouter();
-//   const [categoryFilter, setCategoryFilter] = useState("all"); // State untuk menyimpan kategori filter
-//   const { isInCart, removeFromCart, addToCart, data, setData } = useProduct();
-
-//   useEffect(() => {
-//     if (user && userProfile.role === "admin") {
-//       router.push("/admin");
-//     }
-//   }, [user, userProfile, router]);
-
-//   useEffect(() => {
-//     const unsubProduct = onSnapshot(
-//       collection(db, "products"),
-//       (snapshot) => {
-//         let list = [];
-//         snapshot.docs.forEach((doc) => {
-//           list.push({ id: doc.id, ...doc.data() });
-//         });
-//         setData(list);
-//       },
-//       (error) => {
-//         console.log(error);
-//       }
-//     );
-//     return () => {
-//       unsubProduct();
-//     };
-//   }, [setData]);
-
-//   // Menyaring produk berdasarkan kategori yang dipilih
-//   const filteredData =
-//     data && categoryFilter === "all"
-//       ? data
-//       : data.filter(
-//           (product) => product.category.toLowerCase() === categoryFilter
-//         );
-
-//   return (
-//     <div>
-//       <Navbar />
-//       <div className="p-8 md:p-24 mt-10">
-//         <div className="flex justify-between mb-10">
-//           <h2 className="text-3xl mb-3">All Products</h2>
-//           {/* <input type="text" className="input input-bordered" /> */}
-//           <input
-//             type="text"
-//             className="input input-bordered"
-//             onChange={(e) => {
-//               const inputValue = e.target.value.toLowerCase();
-//               const selectElement = document.querySelector(".select");
-
-//               // Melakukan perulangan pada setiap opsi dropdown
-//               selectElement.childNodes.forEach((option) => {
-//                 if (option.value.toLowerCase().includes(inputValue)) {
-//                   // Jika nilai opsi cocok dengan input pengguna, opsi tersebut akan dipilih
-//                   option.selected = true;
-//                 }
-//               });
-
-//               // Memperbarui state kategori filter sesuai dengan input pengguna
-//               setCategoryFilter(inputValue);
-//             }}
-//           />
-
-//           <select
-//             className="select select-bordered w-full max-w-xs"
-//             onChange={(e) => setCategoryFilter(e.target.value.toLowerCase())} // Mengubah state kategori filter berdasarkan pilihan
-//           >
-//             <option value={"all"}>All</option>
-//             <option value={"fikom"}>Fikom</option>
-//             <option value={"dkv"}>DKV</option>
-//             <option value={"fasilkom"}>Fasilkom</option>
-//           </select>
-//         </div>
-//         <div className="grid grid-cols-1 md:grid-cols-3 place-items-center gap-6">
-//           {filteredData.map((product) => (
-//             <CardItem
-//               key={product.id}
-//               imageUrl={product.image}
-//               fakultas={product.category}
-//               judul={product.title}
-//               deskripsi={product.description}
-//               harga={product.price}
-//               addToCart={() => addToCart(product)}
-//               removeFromCart={() => removeFromCart(product)}
-//               isInCart={isInCart(product.id)}
-//             />
-//           ))}
-//         </div>
-//       </div>
-//       <Footer />
-//     </div>
-//   );
-// };
-
-// export default Product;
-
-//MENAMBAHKAN CODE UNTUK INPUT SETSEACRH SESUAI DENGAN OPTION APABILA USER MENGETIK
-// const Product = () => {
-//   const { user, userProfile } = useAuth();
-//   const router = useRouter();
-//   const [categoryFilter, setCategoryFilter] = useState("all"); // State untuk menyimpan kategori filter
-//   const [searchInput, setSearchInput] = useState(""); // State untuk menyimpan input pencarian
-//   const { isInCart, removeFromCart, addToCart, data, setData } = useProduct();
-
-//   useEffect(() => {
-//     if (user && userProfile.role === "admin") {
-//       router.push("/admin");
-//     }
-//   }, [user, userProfile, router]);
-
-//   useEffect(() => {
-//     const unsubProduct = onSnapshot(
-//       collection(db, "products"),
-//       (snapshot) => {
-//         let list = [];
-//         snapshot.docs.forEach((doc) => {
-//           list.push({ id: doc.id, ...doc.data() });
-//         });
-//         setData(list);
-//       },
-//       (error) => {
-//         console.log(error);
-//       }
-//     );
-//     return () => {
-//       unsubProduct();
-//     };
-//   }, [setData]);
-
-//   // Menyaring produk berdasarkan kategori yang dipilih
-//   const filteredData =
-//     data && categoryFilter === "all"
-//       ? data
-//       : data.filter(
-//           (product) => product.category.toLowerCase() === categoryFilter
-//         );
-
-//   // Fungsi untuk memperbarui state pencarian ketika nilai input berubah
-//   const handleSearchInputChange = (e) => {
-//     setSearchInput(e.target.value.toLowerCase());
-//   };
-
-//   // Fungsi untuk memilih opsi dropdown sesuai dengan input pencarian
-//   useEffect(() => {
-//     const selectElement = document.querySelector('.select');
-
-//     // Melakukan perulangan pada setiap opsi dropdown
-//     selectElement.childNodes.forEach((option) => {
-//       if (option.value.toLowerCase().includes(searchInput)) {
-//         // Jika nilai opsi cocok dengan input pengguna, opsi tersebut akan dipilih
-//         option.selected = true;
-//       }
-//     });
-
-//     // Memperbarui state kategori filter sesuai dengan input pencarian
-//     setCategoryFilter(searchInput);
-//   }, [searchInput]);
-
-//   return (
-//     <div>
-//       <Navbar />
-//       <div className="p-8 md:p-24 mt-10">
-//         <div className="flex justify-between mb-10">
-//           <h2 className="text-3xl mb-3">All Products</h2>
-//           <input
-//             type="text"
-//             className="input input-bordered"
-//             value={searchInput}
-//             onChange={handleSearchInputChange}
-//           />
-//           <select
-//             className="select select-bordered w-full max-w-xs"
-//             onChange={(e) =>
-//               setCategoryFilter(e.target.value.toLowerCase())
-//             } // Mengubah state kategori filter berdasarkan pilihan
-//           >
-//             <option value={"all"}>All</option>
-//             <option value={"fikom"}>Fikom</option>
-//             <option value={"dkv"}>DKV</option>
-//             <option value={"fasilkom"}>Fasilkom</option>
-//           </select>
-//         </div>
-//         <div className="grid grid-cols-1 md:grid-cols-3 place-items-center gap-6">
-//           {filteredData.map((product) => (
-//             <CardItem
-//               key={product.id}
-//               imageUrl={product.image}
-//               fakultas={product.category}
-//               judul={product.title}
-//               deskripsi={product.description}
-//               harga={product.price}
-//               addToCart={() => addToCart(product)}
-//               removeFromCart={() => removeFromCart(product)}
-//               isInCart={isInCart(product.id)}
-//             />
-//           ))}
-//         </div>
-//       </div>
-//       <Footer />
-//     </div>
-//   );
-// };
-
-// export default Product;
-
-// import { useRouter } from "next/router";
-// import { db } from "@/firebase/firebase";
+import CardItem3 from "@/components/CardItem3";
 
 const Product = () => {
   const { user, userProfile } = useAuth();
   const router = useRouter();
-  const [categoryFilter, setCategoryFilter] = useState("all");
   const [searchInput, setSearchInput] = useState("");
   const [data, setData] = useState([]);
-  const [newAssetNotification, setNewAssetNotification] = useState(false);
-  const [AssetNotification, setAssetNotification] = useState(false);
+  const [filteredData, setFilteredData] = useState([]); // Initialize filteredData state
+  const [assetNotification, setAssetNotification] = useState(false);
+  const [statusChanged, setStatusChanged] = useState(false);
+
   const { isInCart, removeFromCart, addToCart } = useProduct();
 
   useEffect(() => {
@@ -304,182 +33,126 @@ const Product = () => {
     }
   }, [user, userProfile, router]);
 
-  // useEffect(() => {
-  //   const unsubProduct = onSnapshot(collection(db, "products"), (snapshot) => {
-  //     let list = [];
-  //     snapshot.docs.forEach((doc) => {
-  //       list.push({ id: doc.id, ...doc.data() });
-  //     });
-  //     setData(list);
-  //     setNewAssetNotification(true); // Setelah perubahan data, atur notifikasi untuk menampilkan pesan bahwa ada aset baru
-  //     alert("New Asset Add");
-  //   }, (error) => {
-  //     console.log(error);
-  //   });
-  //   return () => {
-  //     unsubProduct();
-  //   };
-  // }, []);
-  // useEffect(() => {
-  //   const unsubProduct = onSnapshot(collection(db, "products"), (snapshot) => {
-  //     let list = [];
-  //     snapshot.docs.forEach((doc) => {
-  //       list.push({ id: doc.id, ...doc.data() });
-  //     });
-
-  //     // Memeriksa apakah ada aset baru yang ditambahkan
-  //     if (list.length > data.length) {
-  //       setNewAssetNotification(true); // Jika ada aset baru, atur notifikasi untuk ditampilkan
-  //       alert("New Asset Added");
-  //     } else if (list.length === data.length) {
-  //       setAssetNotification(true); // Jika tidak ada aset baru, atur notifikasi untuk ditampilkan
-  //       alert("Happy Shopping");
-  //     }
-
-  //     setData(list);
-  //   }, (error) => {
-  //     console.log(error);
-  //   });
-  //   return () => {
-  //     unsubProduct();
-  //   };
-  // }, []);
-
-  //USE EFFECT YANG FIX BUAT ALERT
   useEffect(() => {
-    const unsubProduct = onSnapshot(
-      collection(db, "products"),
-      (snapshot) => {
-        let list = [];
-        snapshot.docs.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() });
-        });
+    const unsubProduct = onSnapshot(collection(db, "products"), (snapshot) => {
+      let list = [];
+      snapshot.docs.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setData(list);
+    });
 
-        // Memeriksa apakah ada aset baru yang ditambahkan
-        const isNewAssetAdded = list.length === data.length;
-        // const isAsset = list.length > data.length;
-        if (isNewAssetAdded) {
-          setNewAssetNotification(true); // Jika ada aset baru, atur notifikasi untuk ditampilkan
-          setAssetNotification(false); // Jika ada aset baru, atur notifikasi "Happy Shopping" menjadi false
-          // alert("New Asset Added");
-        } else {
-          setNewAssetNotification(false); // Jika tidak ada aset baru, atur notifikasi "New Asset Added" menjadi false
-          setAssetNotification(true); // Jika tidak ada aset baru, atur notifikasi untuk "Happy Shopping"
-          // alert("Happy Shopping");
-        }
-
-        setData(list);
-      },
-      (error) => {
-        console.log(error);
-      }
-    );
     return () => {
       unsubProduct();
     };
   }, []);
 
-  // Menyaring produk berdasarkan kategori yang dipilih
-  const filteredData =
-    data && categoryFilter === "all"
-      ? data
-      : data.filter(
-          (product) => product.category.toLowerCase() === categoryFilter
-        );
+  useEffect(() => {
+    // Update filteredData whenever searchInput or data changes
+    const updatedFilteredData = data.filter(
+      (product) =>
+        product.category.toLowerCase().includes(searchInput) ||
+        product.title.toLowerCase().includes(searchInput)
+    );
+    setFilteredData(updatedFilteredData);
+  }, [data, searchInput]);
 
-  // Fungsi untuk memperbarui state pencarian ketika nilai input berubah
   const handleSearchInputChange = (e) => {
     setSearchInput(e.target.value.toLowerCase());
   };
 
-  // Fungsi untuk memilih opsi dropdown sesuai dengan input pencarian
-  useEffect(() => {
-    const selectElement = document.querySelector(".select");
-    // Melakukan perulangan pada setiap opsi dropdown
-    selectElement.childNodes.forEach((option) => {
-      if (option.value.toLowerCase().includes(searchInput)) {
-        // Jika nilai opsi cocok dengan input pengguna, opsi tersebut akan dipilih
-        option.selected = true;
-      }
-    });
-    // Memperbarui state kategori filter sesuai dengan input pencarian
-    setCategoryFilter(searchInput);
-  }, [searchInput]);
+  const handleAddToCart = async (product) => {
+    addToCart(product);
+    try {
+      await updateDoc(doc(db, "products", product.id), {
+        status: "in cart",
+        statusPemesanan: "pending",
+      });
 
-  // // Fungsi untuk menyembunyikan notifikasi asset baru telah ditambahkan setelah beberapa waktu
-  useEffect(() => {
-    const notificationTimeout = setTimeout(() => {
-      setNewAssetNotification(false);
-    }, 5000); // Menampilkan notifikasi selama 5 detik
-    return () => clearTimeout(notificationTimeout);
-  }, [newAssetNotification]);
+      const paymentData = {
+        ...product,
+        timestamp: serverTimestamp(),
+        status: "pending",
+        statusPemesanan: "pending",
+        inCart: true,
+      };
+      await updateDoc(doc(db, "payments", product.id), paymentData);
 
-  // Fungsi untuk menyembunyikan notifikasi asset yang bukan baru setelah beberapa waktu
-  useEffect(() => {
-    const notificationTimeout = setTimeout(() => {
-      setAssetNotification(false);
-    }, 5000); // Menampilkan notifikasi selama 5 detik
-    return () => clearTimeout(notificationTimeout);
-  }, [AssetNotification]);
+      setStatusChanged(true);
+      setAssetNotification(true);
+      setTimeout(() => {
+        setAssetNotification(false);
+      }, 5000);
+    } catch (error) {
+      console.error("Error updating status in Firestore: ", error);
+    }
+  };
 
-  // {newAssetNotification && (
-  //   <div className="notification p-8 md:p-24 mt-10">New asset added!</div>
-  // )}
-  // {AssetNotification && (
-  //   <div className="notification flex flex-col p-8 md:p-24 mt-10">
-  //     <span>Happy Hunting</span>
-  //   </div>
-  // )}
-  
+  const handleRemoveFromCart = async (product) => {
+    removeFromCart(product);
+    try {
+      await updateDoc(doc(db, "products", product.id), {
+        status: "available",
+        statusPemesanan: "unknown",
+      });
+
+      const paymentData = {
+        ...product,
+        timestamp: serverTimestamp(),
+        status: "removed",
+        statusPemesanan: "removed",
+        inCart: false,
+      };
+      await updateDoc(doc(db, "payments", product.id), paymentData);
+
+      setStatusChanged(true);
+      setAssetNotification(true);
+      setTimeout(() => {
+        setAssetNotification(false);
+      }, 5000);
+    } catch (error) {
+      console.error("Error updating status in Firestore: ", error);
+    }
+  };
+
   return (
     <div>
       <Navbar />
       <div className="p-8 md:p-24 mt-10">
         <div className="flex justify-between mb-10">
           <h2 className="text-3xl mb-3">All Products</h2>
-          {AssetNotification && (
+          {statusChanged && (
             <div className="notification-3xl mb-3">
-              Happy Hunting
+              Status changed to "available"
             </div>
+          )}
+          {assetNotification && (
+            <div className="notification-3xl mb-3">Happy Hunting</div>
           )}
           <input
             type="text"
             className="input input-bordered"
             value={searchInput}
             onChange={handleSearchInputChange}
+            placeholder="Search by category or title"
           />
-          <select
-            className="select select-bordered w-full max-w-xs"
-            onChange={(e) => setCategoryFilter(e.target.value.toLowerCase())}
-          >
-            <option value={"all"}>All</option>
-            <option value={"fikom"}>Fikom</option>
-            <option value={"dkv"}>DKV</option>
-            <option value={"fasilkom"}>Fasilkom</option>
-            <option value={"baleho 1"}>Baleho</option>
-            <option value={"baleho 2"}>Baleho</option>
-            <option value={"baleho 3"}>Baleho</option>
-            <option value={"baleho 4"}>Baleho</option>
-            <option value={"baleho 5"}>Baleho</option>
-            <option value={"baleho 6"}>Baleho</option>
-            <option value={"baleho 7"}>Baleho</option>
-            <option value={"baleho 8"}>Baleho</option>
-            <option value={"baleho 9"}>Baleho</option>
-            <option value={"baleho 10"}>Baleho</option>
-          </select>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 place-items-center gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {filteredData.map((product) => (
-            <CardItem
+            <CardItem3
               key={product.id}
               imageUrl={product.image}
               fakultas={product.category}
               judul={product.title}
               deskripsi={product.description}
               harga={product.price}
-              // addToCart={() => addToCart(product)}
-              // removeFromCart={() => removeFromCart(product)}
+              status={product.status}
+              statusPemesanan={product.statusPemesanan}
+              // inCart={product.inCart}
+              addToCart={() => handleAddToCart(product)}
+              removeFromCart={() => handleRemoveFromCart(product)}
               // isInCart={isInCart(product.id)}
+              // statusChanged={statusChanged}
             />
           ))}
         </div>
@@ -490,3 +163,18 @@ const Product = () => {
 };
 
 export default Product;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

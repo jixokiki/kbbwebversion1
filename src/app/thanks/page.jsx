@@ -21,7 +21,7 @@ const Thanks = () => {
         />
         <div className=" flex justify-center">
           <Link
-            href={"/sign-in"}
+            href={"/"}
             className="bg-stone-800 px-8 py-4 text-white text-2xl rounded flex items-center gap-3"
           >
             <span>
